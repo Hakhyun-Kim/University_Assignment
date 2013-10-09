@@ -1,0 +1,85 @@
+#include "aj.h"
+#include <assert.h>
+
+Color color = {0,0,0};
+static BYTE lineBuffer[WINDOW_WIDTH][WINDOW_HEIGHT];
+
+inline void swap(int &a,int &b)
+{
+	a ^= b;
+	b ^= a;
+	a ^= b;
+}
+
+void DrawLine(int ys,int xs,int ye,int xe)	//y 와 x를 바꾸어서 그린다.
+{
+	if(ye < ys)
+	{
+		swap(xe,xs);
+		swap(ye,ys);
+	}
+	int xi = xs;
+	int xf = -(ye-ys);
+	int mi = (xe-xs)/(ye-ys);
+	if(xe-xs < 0)
+		mi -= 1;
+	int mf = 2*( (xe-xs) - (ye-ys)*mi );
+
+	for( int y = ys; y < ye; y++)
+	{
+		lineBuffer[y][xi]++;	//y 와 x를 바꾸어서 그린다.->y축으로 스캔가능.
+
+		xi = xi+mi;
+		xf = xf+mf;
+		if(xf>0)
+		{
+			xi = xi+1;
+			xf = xf-2*(ye-ys);
+		}
+	}
+}
+
+
+void Render(int width,int height,Color **buffer,int num, POINT * array_point)
+{	
+	memset(lineBuffer,0,width*height);
+
+	for (int i = 0; i < num-1; i++)
+	{
+		int xs = array_point[i].x;
+		int ys = array_point[i].y;
+
+		int xe = array_point[i+1].x;
+		int ye = array_point[i+1].y;
+		
+		DrawLine(xs,ys,xe,ye);		
+	}
+
+	//마지막 점과 처음 점 연결
+	if( array_point[num-1].x != array_point[0].x &&
+		array_point[num-1].x != array_point[0].y)
+		DrawLine(array_point[num-1].x,array_point[num-1].y,array_point[0].x,
+			array_point[0].y);
+
+	for(int x = 0; x < width; x++)
+	{
+		for(int y = 0; y < height; y++)
+		{	
+			if( *(int*)(&lineBuffer[x][y]) == 0)	//4점이 모두 0 인경우.
+				y+=3;
+			else if(*(int*)(&lineBuffer[x][y]) == 0x1111)	//4점이 모두 1 인경우
+				y+=3;
+			else if(lineBuffer[x][y] % 2 == 1)
+			{
+				int sy = y;
+				
+				while(lineBuffer[x][++y] % 2 == 0);
+
+				//for(int yy = sy; yy < y; yy++)			
+				//	buffer[x][yy] = color;
+				memset(&buffer[x][sy],0,(y-sy)*sizeof(Color));
+			}
+		}
+	}
+}
+
